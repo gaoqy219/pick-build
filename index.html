@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>初级汉语综合课，词汇复习游戏</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <!-- 配置Tailwind自定义颜色和字体 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4F46E5',
+                        secondary: '#10B981',
+                        accent: '#F59E0B',
+                        neutral: '#64748B',
+                        light: '#F1F5F9',
+                        dark: '#1E293B'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .grid-cell {
+                @apply flex items-center justify-center text-xl md:text-2xl font-bold rounded-lg cursor-pointer transition-all duration-300 
+                       hover:bg-primary/10 active:bg-primary/20 select-none border border-gray-200 bg-white text-dark;
+            }
+            .grid-cell-selected {
+                @apply bg-primary/30 text-primary;
+            }
+            .grid-cell-empty {
+                @apply bg-gray-100 border border-gray-200 cursor-default hover:bg-gray-100;
+            }
+            .btn-primary {
+                @apply bg-primary text-white px-6 py-3 rounded-lg font-medium transition-all duration-300 
+                       hover:bg-primary/90 active:bg-primary/80 focus:outline-none focus:ring-2 focus:ring-primary/50 text-lg;
+            }
+            .btn-secondary {
+                @apply bg-secondary text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 
+                       hover:bg-secondary/90 active:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-secondary/50;
+            }
+            .difficulty-btn {
+                @apply px-4 py-2 rounded-lg font-medium transition-all duration-300 border-2
+                       hover:bg-primary/10 active:bg-primary/20 focus:outline-none;
+            }
+            .difficulty-btn-selected {
+                @apply bg-primary/20 border-primary text-primary;
+            }
+            .timer {
+                @apply text-2xl font-bold px-6 py-2 rounded-lg bg-red-50 text-red-600 border border-red-200 inline-block;
+            }
+            .status-tag {
+                @apply text-lg px-4 py-1 rounded mt-2 inline-block;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans text-dark">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- 游戏标题 -->
+        <header class="text-center mb-6">
+            <h1 class="text-[clamp(1.8rem,4vw,2.5rem)] font-bold text-primary mb-2">Vocab Review for Elementary Comprehensive Chinese Course</h1>
+            <p class="text-xl text-neutral font-medium">选字组词｜Char-word Building Game</p>
+        </header>
+        
+        <!-- 开始界面 -->
+        <div id="start-screen" class="text-center mb-8">
+            <div class="mb-6">
+                <h2 class="text-xl font-semibold mb-3">Choose difficulty</h2>
+                <div class="flex flex-wrap justify-center gap-3">
+                    <button class="difficulty-btn difficulty-btn-selected" data-size="3">
+                        3×3  (4 words)
+                    </button>
+                    <button class="difficulty-btn" data-size="4">
+                        4×4  (8 words)
+                    </button>
+                    <button class="difficulty-btn" data-size="5">
+                        5×5  (12 words)
+                    </button>
+                    <button class="difficulty-btn" data-size="6">
+                        6×6  (18 words)
+                    </button>
+                </div>
+            </div>
+            
+            <button id="start-btn" class="btn-primary">
+                <i class="fa fa-play-circle mr-2"></i> Start
+            </button>
+            <p class="text-neutral mt-4">You have 3 minutes to match words. Pick 2 chars to form a word and submit. Correct +5 sec; Wrong -5 sec.</p>
+        </div>
+        
+        <!-- 游戏状态区域 (初始隐藏) -->
+        <div id="game-status" class="text-center mb-6 hidden">
+            <div class="timer">
+                <i class="fa fa-clock-o mr-2"></i>
+                <span id="timer">03:00</span>
+            </div>
+            <div id="score-tag" class="status-tag bg-blue-50 text-blue-600 border border-blue-200 hidden">
+                <i class="fa fa-trophy mr-1"></i>
+                Matched: <span id="completed-pairs">0</span>/<span id="total-pairs">3</span>
+            </div>
+        </div>
+        
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- 左侧游戏区域 -->
+            <div class="lg:w-2/3 bg-white rounded-xl shadow-md p-6">
+                <!-- 当前选择的汉字 -->
+                <div id="current-selection" class="mb-6 h-12 flex items-center justify-center gap-2 text-xl">
+                    <span class="text-neutral">pick 2 chars to form a word...</span>
+                </div>
+                
+                <!-- 操作按钮 -->
+                <div class="mb-6 flex justify-center gap-4">
+                    <button id="submit-btn" class="btn-primary" disabled>
+                        <i class="fa fa-check mr-1"></i> submit
+                    </button>
+                    <button id="clear-btn" class="btn-secondary" disabled>
+                        <i class="fa fa-eraser mr-1"></i> cancel selection
+                    </button>
+                </div>
+                
+                <!-- 游戏宫格区域 (初始隐藏) -->
+                <div id="grid-container" class="flex justify-center items-center my-4 hidden">
+                    <div id="char-grid" class="grid gap-2 md:gap-3 justify-items-center">
+                        <!-- 宫格将通过JavaScript动态生成 -->
+                    </div>
+                </div>
+                
+                <!-- 游戏提示 -->
+                <div id="message" class="mt-6 text-center text-lg min-h-8 font-medium"></div>
+            </div>
+            
+            <!-- 右侧信息区域 -->
+            <div class="lg:w-1/3 bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-xl font-bold mb-4 text-center flex items-center">
+                    <i class="fa fa-book text-primary mr-2"></i> Matched words
+                </h2>
+                <div id="pair-container" class="space-y-2 min-h-[120px] max-h-[300px] overflow-y-auto">
+                    <p class="text-neutral text-center italic">Successfully matched words will appear here.</p>
+                </div>
+                
+                <div class="mt-8">
+                    <h3 class="text-lg font-semibold mb-3 flex items-center">
+                        <i class="fa fa-progress text-accent mr-2"></i> Your progress
+                    </h3>
+                    <div class="bg-light rounded-full h-4 mb-2">
+                        <div id="progress-bar" class="bg-primary h-4 rounded-full" style="width: 0%"></div>
+                    </div>
+                    <div class="flex justify-between text-sm text-neutral">
+                        <span id="grid-info">Mode: 3×3</span>
+                        <span>Remaining: <span id="remaining-pairs">3</span>/<span id="remaining-total">3</span></span>
+                    </div>
+                </div>
+                
+                <div class="mt-8 p-4 bg-light rounded-lg">
+                    <h3 class="text-lg font-semibold mb-2">Rules：</h3>
+                    <ul class="text-sm text-neutral space-y-1 list-disc pl-5">
+                        <li>You have 3 minutes</li>
+                        <li>Click 2 chars to select and then click Submit</li>
+                        <li>Correct match +5 secs</li>
+                        <li>Wrong match -5 secs</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 游戏结束弹窗 (初始隐藏) -->
+        <div id="result-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4 text-center">
+                <h2 id="result-title" class="text-2xl font-bold mb-4 text-primary">End</h2>
+                <p id="result-message" class="text-lg mb-6">You matched<span id="final-score">0</span>words！</p>
+                <div id="award-message" class="text-lg font-medium text-accent mb-6"></div>
+                <button id="restart-btn" class="btn-primary">
+                    <i class="fa fa-refresh mr-2"></i> Retry
+                </button>
+            </div>
+        </div>
+        
+        <!-- 页脚 -->
+        <footer class="mt-12 text-center text-neutral text-sm">
+            <p>&copy; 2025 Chingyu Kao. All rights reserved</p>
+        </footer>
+    </div>
+
+    <script>
+        // 前15课所有双音节词汇总（纯2字词，去重整理）
+        const fullWordList = [
+    "你好", "你们", "老师", "上课", "下课",
+    "早上", "中午", "晚上", "中国", "美国", "法国", "德国", "英国", "韩国",
+    "请问", "什么", "名字", "认识", "高兴", "贵姓",
+    "首都", "祖国", "一样", "一定", "不怕", "不看", "一般", "一年", "不吃", "不同",
+    "留学", "学习", "他们", "一起", "汉语", "泰国", "英语", "法语", "同学",
+    "爸爸", "妈妈", "哥哥", "姐姐", "妹妹", "弟弟", "职员", "工人", "农民", "护士", "警察", "学生", "我们",
+    "工作", "律师", "医生", "大学",
+    "电子", "词典", "电脑", "面包", "香蕉", "苹果", "草莓", "西瓜", "橘子", "手机", "咖啡", "牛奶",
+    "啤酒", "矿泉", "可乐", "谢谢", "客气", "不用",
+    "教学", "图书", "运动", "体育", "饭馆", "超市", "银行", "卫生", "商店", "书店", "邮局", "桌子", "书包",
+    "宿舍", "旁边", "里边", "地方", "前边", "上边", "后边", "这儿", "那儿", "哪儿", "东边", "西边", "南边", "北边",
+    "今天", "明天", "后天", "昨天", "前天", "生日", "报纸", "杂志", "衣服", "时间", "礼物", "吃饭", "准备", "以后",
+    "每天", "上午", "起床", "洗澡", "早饭", "教室", "电视", "上网", "现在", "朋友", "见面", "电影", "再见", "买物", "游泳",
+    "跑步", "睡觉", "打球", "英文", "安排",
+    "城市", "公园", "风景", "空气", "爬山", "呼吸", "茶馆", "喝茶", "便宜", "漂亮",
+    "新鲜", "非常", "听说", "出发", "大家", "觉得", "休息",
+    "同屋", "汽车", "公司", "上班", "周末", "平时", "学校", "食堂", "做饭", "聊天", "晚饭", "号码", "画儿", "喜欢",
+    "中文", "音乐", "东西", "收拾", "房间", "电话", "北京", "上海", "南京", "广州", "深圳", "香港", "重庆", "珠海",
+    "学期", "兴趣", "书法", "太极", "身体", "爱好", "足球", "篮球", "自行", "报名", "红茶", "绿茶", "排球", "网球", "乒乓",
+    "羽毛", "唱歌", "跳舞", "语言", "学院", "兴趣", "没错",
+    "房子", "房租", "搬家", "请客", "父母", "生病", "感冒", "汉字", "课文", "练习", "换钱", "方便", "满意", "已经", "不错",
+    "离远", "走路",
+    "今年", "冬天", "春天", "夏天", "秋天", "前年", "去年", "明年", "后年", "商场", "毛衣", "羽绒", "医院", "看病",
+    "水果", "天气", "暖和", "凉快", "特别", "有空",
+    "打工", "挣钱", "告诉", "辅导", "互相", "餐厅", "办公", "帮忙", "放假", "旅游", "开车", "比较", "感谢", "合适", "可以"
+];
+
+        // 各难度对应的配置
+        const difficultyConfig = {
+            3: { size: 3, totalPairs: 4, gridClass: 'grid-cols-3', cellSize: 'w-16 h-16' },
+            4: { size: 4, totalPairs: 8, gridClass: 'grid-cols-4', cellSize: 'w-14 h-14' },
+            5: { size: 5, totalPairs: 12, gridClass: 'grid-cols-5', cellSize: 'w-12 h-12' },
+            6: { size: 6, totalPairs: 18, gridClass: 'grid-cols-6', cellSize: 'w-10 h-10' }
+        };
+
+        // 游戏状态管理
+        const gameState = {
+            isStarted: false,
+            gridSize: 3, // 默认3×3
+            totalPairs: 3,
+            selectedWords: [], // 本次游戏随机选中的词语
+            completedPairs: 0,
+            selectedChars: [],
+            selectedIndices: [],
+            usedWords: new Set(),
+            totalTime: 180, // 3分钟=180秒
+            remainingTime: 180,
+            timerInterval: null,
+            cells: []
+        };
+
+        // DOM元素获取
+        const elements = {
+            charGrid: document.getElementById('char-grid'),
+            currentSelection: document.getElementById('current-selection'),
+            submitBtn: document.getElementById('submit-btn'),
+            clearBtn: document.getElementById('clear-btn'),
+            message: document.getElementById('message'),
+            pairContainer: document.getElementById('pair-container'),
+            progressBar: document.getElementById('progress-bar'),
+            completedPairs: document.getElementById('completed-pairs'),
+            totalPairs: document.getElementById('total-pairs'),
+            remainingPairs: document.getElementById('remaining-pairs'),
+            remainingTotal: document.getElementById('remaining-total'),
+            startBtn: document.getElementById('start-btn'),
+            startScreen: document.getElementById('start-screen'),
+            gameStatus: document.getElementById('game-status'),
+            timer: document.getElementById('timer'),
+            scoreTag: document.getElementById('score-tag'),
+            gridContainer: document.getElementById('grid-container'),
+            resultModal: document.getElementById('result-modal'),
+            resultTitle: document.getElementById('result-title'),
+            resultMessage: document.getElementById('result-message'),
+            finalScore: document.getElementById('final-score'),
+            awardMessage: document.getElementById('award-message'),
+            restartBtn: document.getElementById('restart-btn'),
+            difficultyBtns: document.querySelectorAll('.difficulty-btn'),
+            gridInfo: document.getElementById('grid-info')
+        };
+
+        // 初始化难度选择按钮事件
+        elements.difficultyBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // 移除所有选中状态
+                elements.difficultyBtns.forEach(b => b.classList.remove('difficulty-btn-selected'));
+                // 添加当前选中状态
+                btn.classList.add('difficulty-btn-selected');
+                // 更新游戏状态
+                const size = parseInt(btn.dataset.size);
+                gameState.gridSize = size;
+                gameState.totalPairs = difficultyConfig[size].totalPairs;
+                
+                // 更新显示信息
+                elements.gridInfo.textContent = `Mode: ${size}×${size} `;
+                elements.remainingPairs.textContent = gameState.totalPairs;
+                elements.remainingTotal.textContent = gameState.totalPairs;
+                elements.totalPairs.textContent = gameState.totalPairs;
+            });
+        });
+
+        // 随机选取指定数量的词语（确保无重复）
+        function selectRandomWords(count) {
+            const shuffledFullList = [...fullWordList].sort(() => Math.random() - 0.5);
+            // 选取前count组不重复的词语
+            return shuffledFullList.slice(0, count);
+        }
+
+        // 提取选中词语的汉字并打乱
+        function generateGridChars() {
+            let allChars = [];
+            gameState.selectedWords.forEach(word => {
+                allChars.push(...word.split(''));
+            });
+            // 随机打乱汉字顺序
+            return allChars.sort(() => Math.random() - 0.5);
+        }
+
+        // 创建宫格（根据选择的难度）
+        function createCharGrid() {
+            elements.charGrid.innerHTML = '';
+            const config = difficultyConfig[gameState.gridSize];
+            elements.charGrid.className = `grid ${config.gridClass} gap-2 md:gap-3 justify-items-center`;
+            
+            const shuffledChars = generateGridChars();
+            const totalCells = config.size * config.size;
+            const centerIndex = Math.floor(totalCells / 2); // 计算中心位置索引
+            
+            gameState.cells = [];
+            let charIndex = 0;
+            
+            for (let i = 0; i < totalCells; i++) {
+                const cell = document.createElement('div');
+                
+                // 对于3×3和5×5网格，中心位置不放字
+                if ((config.size === 3 || config.size === 5) && i === centerIndex) {
+                    cell.className = `grid-cell grid-cell-empty ${config.cellSize}`;
+                    elements.charGrid.appendChild(cell);
+                    gameState.cells.push(cell);
+                    continue;
+                }
+                
+                // 填充汉字
+                const char = shuffledChars[charIndex];
+                cell.className = `grid-cell ${config.cellSize}`;
+                cell.textContent = char;
+                cell.dataset.index = i;
+                
+                cell.addEventListener('click', () => selectChar(cell, char, i));
+                
+                elements.charGrid.appendChild(cell);
+                gameState.cells.push(cell);
+                charIndex++;
+            }
+        }
+
+        // 选择汉字
+        function selectChar(cell, char, index) {
+            if (!gameState.isStarted) return;
+            // 跳过空单元格
+            if (cell.classList.contains('grid-cell-empty')) return;
+            
+            // 最多选择2个汉字
+            if (gameState.selectedChars.length >= 2 && !cell.classList.contains('grid-cell-selected')) {
+                showMessage('每次只能选择2个汉字组成词语', 'warning');
+                return;
+            }
+            
+            // 切换选择状态
+            if (cell.classList.contains('grid-cell-selected')) {
+                // 取消选择
+                cell.classList.remove('grid-cell-selected');
+                gameState.selectedChars = gameState.selectedChars.filter(item => item.index !== index);
+                gameState.selectedIndices = gameState.selectedIndices.filter(i => i !== index);
+            } else {
+                // 选择汉字
+                cell.classList.add('grid-cell-selected');
+                gameState.selectedChars.push({ char, index });
+                gameState.selectedIndices.push(index);
+            }
+            
+            // 更新选择显示
+            updateSelectionDisplay();
+            // 启用/禁用提交按钮
+            elements.submitBtn.disabled = gameState.selectedChars.length < 2;
+        }
+
+        // 更新选择显示
+        function updateSelectionDisplay() {
+            if (gameState.selectedChars.length === 0) {
+                elements.currentSelection.innerHTML = '<span class="text-neutral">pick 2 chars to form a word...</span>';
+                return;
+            }
+            
+            elements.currentSelection.innerHTML = '';
+            gameState.selectedChars.forEach(item => {
+                const charSpan = document.createElement('span');
+                charSpan.className = 'px-3 py-1 bg-primary/10 rounded text-primary font-medium';
+                charSpan.textContent = item.char;
+                elements.currentSelection.appendChild(charSpan);
+            });
+        }
+
+        // 提交配对验证
+        function verifyPair() {
+            const word = gameState.selectedChars.map(item => item.char).join('');
+            const reverseWord = gameState.selectedChars.slice().reverse().map(item => item.char).join('');
+            
+            const isCorrect = gameState.selectedWords.includes(word) || gameState.selectedWords.includes(reverseWord);
+            const targetWord = gameState.selectedWords.includes(word) ? word : reverseWord;
+            
+            if (isCorrect && !gameState.usedWords.has(targetWord)) {
+                // 正确配对
+                handleCorrectPair(targetWord);
+            } else {
+                // 错误配对
+                handleWrongPair(word);
+            }
+        }
+
+        // 处理正确配对
+        function handleCorrectPair(word) {
+            gameState.usedWords.add(word);
+            gameState.completedPairs++;
+            gameState.remainingTime += 5; // 正确+5秒
+            
+            // 更新UI
+            showMessage(`正确！"${word}"是词语，时间+5秒`, 'success');
+            updateTimerDisplay();
+            updateProgress();
+            addPairToDisplay(word);
+            
+            // 置灰已配对汉字
+            gameState.selectedIndices.forEach(index => {
+                const cell = gameState.cells[index];
+                cell.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-100');
+                cell.classList.remove('grid-cell-selected');
+            });
+            
+            // 检查游戏是否结束
+            if (gameState.completedPairs === gameState.totalPairs) {
+                endGame(true);
+            }
+            
+            // 重置选择
+            resetSelection();
+        }
+
+        // 处理错误配对
+        function handleWrongPair(word) {
+            gameState.remainingTime = Math.max(0, gameState.remainingTime - 5); // 错误-5秒，最低为0
+            
+            // 更新UI
+            showMessage(`错误！"${word}"不是词语，时间-5秒`, 'error');
+            updateTimerDisplay();
+            
+            // 取消选中状态
+            gameState.selectedIndices.forEach(index => {
+                const cell = gameState.cells[index];
+                cell.classList.remove('grid-cell-selected');
+            });
+            
+            // 检查时间是否为0
+            if (gameState.remainingTime <= 0) {
+                endGame(false);
+            }
+            
+            // 重置选择
+            resetSelection();
+        }
+
+        // 添加已配对词语到显示区
+        function addPairToDisplay(word) {
+            if (gameState.completedPairs === 1) {
+                elements.pairContainer.innerHTML = '';
+            }
+            
+            const pairEl = document.createElement('div');
+            pairEl.className = 'p-2 rounded-lg flex items-center bg-secondary/10 text-secondary';
+            pairEl.innerHTML = `
+                <i class="fa fa-check-circle mr-2"></i>
+                <span>${word}</span>
+            `;
+            
+            elements.pairContainer.appendChild(pairEl);
+        }
+
+        // 重置选择
+        function resetSelection() {
+            gameState.selectedChars = [];
+            gameState.selectedIndices = [];
+            elements.submitBtn.disabled = true;
+            updateSelectionDisplay();
+        }
+
+        // 显示消息提示
+        function showMessage(text, type = 'info') {
+            elements.message.textContent = text;
+            
+            // 设置消息样式
+            switch(type) {
+                case 'success':
+                    elements.message.className = 'mt-6 text-center text-lg min-h-8 font-medium text-secondary';
+                    break;
+                case 'error':
+                    elements.message.className = 'mt-6 text-center text-lg min-h-8 font-medium text-red-500';
+                    break;
+                case 'warning':
+                    elements.message.className = 'mt-6 text-center text-lg min-h-8 font-medium text-accent';
+                    break;
+                default:
+                    elements.message.className = 'mt-6 text-center text-lg min-h-8 font-medium text-primary';
+            }
+        }
+
+        // 更新进度条和计数器
+        function updateProgress() {
+            const progress = (gameState.completedPairs / gameState.totalPairs) * 100;
+            elements.progressBar.style.width = `${progress}%`;
+            elements.completedPairs.textContent = gameState.completedPairs;
+            elements.remainingPairs.textContent = gameState.totalPairs - gameState.completedPairs;
+            elements.finalScore.textContent = gameState.completedPairs;
+        }
+
+        // 更新计时器显示
+        function updateTimerDisplay() {
+            const minutes = Math.floor(gameState.remainingTime / 60);
+            const seconds = gameState.remainingTime % 60;
+            elements.timer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // 时间少于60秒时变红
+            if (gameState.remainingTime < 60) {
+                elements.timer.parentElement.classList.add('bg-red-100', 'text-red-700', 'border-red-300');
+            } else {
+                elements.timer.parentElement.classList.remove('bg-red-100', 'text-red-700', 'border-red-300');
+            }
+        }
+
+        // 开始游戏
+        function startGame() {
+            // 重置游戏状态
+            gameState.isStarted = true;
+            gameState.completedPairs = 0;
+            gameState.remainingTime = gameState.totalTime;
+            gameState.selectedWords = selectRandomWords(gameState.totalPairs); // 随机选取对应数量的词语
+            gameState.usedWords.clear();
+            resetSelection();
+            
+            // 更新UI显示
+            elements.startScreen.classList.add('hidden');
+            elements.gameStatus.classList.remove('hidden');
+            elements.scoreTag.classList.remove('hidden');
+            elements.gridContainer.classList.remove('hidden');
+            elements.submitBtn.disabled = true;
+            elements.clearBtn.disabled = false;
+            elements.totalPairs.textContent = gameState.totalPairs;
+            elements.remainingTotal.textContent = gameState.totalPairs;
+            elements.gridInfo.textContent = `mode: ${gameState.gridSize}×${gameState.gridSize} `;
+            
+            // 创建宫格
+            createCharGrid();
+            // 更新进度
+            updateProgress();
+            // 启动计时器
+            startTimer();
+            // 显示提示
+            showMessage('Game start！please pick 2 chars to form a word', 'info');
+        }
+
+        // 启动计时器
+        function startTimer() {
+            clearInterval(gameState.timerInterval);
+            updateTimerDisplay();
+            
+            gameState.timerInterval = setInterval(() => {
+                gameState.remainingTime--;
+                updateTimerDisplay();
+                
+                if (gameState.remainingTime <= 0) {
+                    clearInterval(gameState.timerInterval);
+                    endGame(false);
+                }
+            }, 1000);
+        }
+
+        // 结束游戏
+        function endGame(isComplete) {
+            clearInterval(gameState.timerInterval);
+            gameState.isStarted = false;
+            
+            // 更新弹窗内容
+            if (isComplete) {
+                elements.resultTitle.textContent = "挑战成功！";
+                elements.resultTitle.classList.add('text-secondary');
+                elements.resultMessage.textContent = `恭喜你完成所有配对，共用时${gameState.totalTime - gameState.remainingTime}秒！`;
+                
+                // 根据难度显示不同的奖励信息
+                if (gameState.gridSize === 6) {
+                    elements.awardMessage.textContent = "太厉害了！你完成了最高难度挑战！";
+                } else if (gameState.gridSize === 5) {
+                    elements.awardMessage.textContent = "很棒！高级难度对你来说不在话下！";
+                } else if (gameState.gridSize === 4) {
+                    elements.awardMessage.textContent = "做得好！中级难度轻松完成！";
+                } else {
+                    elements.awardMessage.textContent = "入门挑战成功！试试更高难度吧！";
+                }
+            } else {
+                elements.resultTitle.textContent = "时间到！";
+                elements.resultTitle.classList.add('text-accent');
+                elements.resultMessage.textContent = `你成功配对了${gameState.completedPairs}组词语`;
+                
+                const completionRate = gameState.completedPairs / gameState.totalPairs;
+                if (completionRate >= 0.8) {
+                    elements.awardMessage.textContent = "非常接近完成了，再快一点就成功了！";
+                } else if (completionRate >= 0.5) {
+                    elements.awardMessage.textContent = "完成了一半以上，继续加油！";
+                } else {
+                    elements.awardMessage.textContent = "继续努力，多练习会更熟练！";
+                }
+            }
+            
+            // 显示弹窗
+            elements.resultModal.classList.remove('hidden');
+        }
+
+        // 重置游戏
+        function resetGame() {
+            // 隐藏弹窗
+            elements.resultModal.classList.add('hidden');
+            
+            // 重置状态
+            clearInterval(gameState.timerInterval);
+            gameState.isStarted = false;
+            
+            // 重置UI
+            elements.timer.parentElement.classList.remove('bg-red-100', 'text-red-700', 'border-red-300');
+            elements.startScreen.classList.remove('hidden');
+            elements.gameStatus.classList.add('hidden');
+            elements.scoreTag.classList.add('hidden');
+            elements.gridContainer.classList.add('hidden');
+            elements.message.textContent = '';
+            elements.clearBtn.disabled = true;
+            
+            // 重置进度
+            elements.progressBar.style.width = '0%';
+            elements.completedPairs.textContent = '0';
+            elements.remainingPairs.textContent = gameState.totalPairs;
+            elements.remainingTotal.textContent = gameState.totalPairs;
+        }
+
+        // 绑定事件监听
+        elements.startBtn.addEventListener('click', startGame);
+        elements.submitBtn.addEventListener('click', verifyPair);
+        elements.clearBtn.addEventListener('click', resetSelection);
+        elements.restartBtn.addEventListener('click', resetGame);
+
+        // 页面初始化
+        window.addEventListener('load', () => {
+            elements.submitBtn.disabled = true;
+            elements.clearBtn.disabled = true;
+        });
+    </script>
+</body>
+</html>
