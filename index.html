@@ -423,7 +423,7 @@
             gameState.remainingTime += 5; // 正确+5秒
             
             // 更新UI
-            showMessage(`正确！"${word}"是词语，时间+5秒`, 'success');
+            showMessage(`正确！"${word}"是词表里的词语，时间+5秒`, 'success');
             updateTimerDisplay();
             updateProgress();
             addPairToDisplay(word);
@@ -449,7 +449,7 @@
             gameState.remainingTime = Math.max(0, gameState.remainingTime - 5); // 错误-5秒，最低为0
             
             // 更新UI
-            showMessage(`错误！"${word}"不是词语，时间-5秒`, 'error');
+            showMessage(`错误！"${word}"不是词表里的词语，时间-5秒`, 'error');
             updateTimerDisplay();
             
             // 取消选中状态
